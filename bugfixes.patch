@@ -1,0 +1,138 @@
+From ca0cbe3a44f3730f71ee0a65b12c20782c5ec0cf Mon Sep 17 00:00:00 2001
+From: Tobias Schulz <tobias@freehal.net>
+Date: Tue, 20 Nov 2012 20:02:41 +0100
+Subject: [PATCH] first commit
+
+---
+ Makefile                            |   11 ++++-------
+ arch/arm/mach-tegra/Makefile        |    7 +------
+ arch/arm/mach-tegra/board-grouper.c |    2 ++
+ arch/arm/vfp/Makefile               |    2 +-
+ drivers/power/Makefile              |    2 ++
+ kernel/module.c                     |    2 +-
+ 6 files changed, 11 insertions(+), 15 deletions(-)
+
+diff --git a/Makefile b/Makefile
+index 4e1d046..64562ab 100644
+--- a/Makefile
++++ b/Makefile
+@@ -192,8 +192,8 @@ SUBARCH := $(shell uname -m | sed -e s/i.86/i386/ -e s/sun4u/sparc64/ \
+ # Default value for CROSS_COMPILE is not to prefix executables
+ # Note: Some architectures assign CROSS_COMPILE in their arch/*/Makefile
+ export KBUILD_BUILDHOST := $(SUBARCH)
+-ARCH		?= arm
+-CROSS_COMPILE	?= ../arm-eabi-4.6/bin/arm-eabi-
++ARCH		?= $(SUBARCH)
++CROSS_COMPILE	?= $(CONFIG_CROSS_COMPILE:"%"=%)
+ 
+ # Architecture as present in compile.h
+ UTS_MACHINE 	:= $(ARCH)
+@@ -350,7 +350,7 @@ CHECKFLAGS     := -D__linux__ -Dlinux -D__STDC__ -Dunix -D__unix__ \
+ CFLAGS_MODULE   =
+ AFLAGS_MODULE   =
+ LDFLAGS_MODULE  =
+-CFLAGS_KERNEL	= -mcpu=cortex-a9 -mfpu=neon -ffast-math
++CFLAGS_KERNEL	=
+ AFLAGS_KERNEL	=
+ CFLAGS_GCOV	= -fprofile-arcs -ftest-coverage
+ 
+@@ -368,10 +368,7 @@ KBUILD_CFLAGS   := -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs \
+ 		   -fno-strict-aliasing -fno-common \
+ 		   -Werror-implicit-function-declaration \
+ 		   -Wno-format-security \
+-		   -fno-delete-null-pointer-checks \
+-		   -mcpu=cortex-a9 \
+-		   -mfpu=neon \
+-		   -ffast-math
++		   -fno-delete-null-pointer-checks
+ KBUILD_AFLAGS_KERNEL :=
+ KBUILD_CFLAGS_KERNEL :=
+ KBUILD_AFLAGS   := -D__ASSEMBLY__
+diff --git a/arch/arm/mach-tegra/Makefile b/arch/arm/mach-tegra/Makefile
+index 6e948df..9fceb2d 100755
+--- a/arch/arm/mach-tegra/Makefile
++++ b/arch/arm/mach-tegra/Makefile
+@@ -33,7 +33,7 @@ obj-y                                   += gic.o
+ obj-y                                   += sleep.o
+ 
+ plus_sec := $(call as-instr,.arch_extension sec,+sec)
+-AFLAGS_sleep.o :=-Wa,-march=armv7-a+sec
++AFLAGS_sleep.o :=-Wa,-march=armv7-a$(plus_sec)
+ 
+ obj-$(CONFIG_ARCH_TEGRA_2x_SOC)         += sleep-t2.o
+ obj-$(CONFIG_ARCH_TEGRA_3x_SOC)         += sleep-t3.o
+@@ -79,12 +79,8 @@ obj-y                                   += reset.o
+ obj-$(CONFIG_TEGRA_SYSTEM_DMA)          += dma.o
+ obj-$(CONFIG_CPU_FREQ)                  += cpu-tegra.o
+ ifeq ($(CONFIG_TEGRA_AUTO_HOTPLUG),y)
+-ifeq ($(CONFIG_TEGRA_CPUQUIET),y)
+-obj-$(CONFIG_ARCH_TEGRA_3x_SOC)         += cpuquiet.o
+-else
+ obj-$(CONFIG_ARCH_TEGRA_3x_SOC)         += cpu-tegra3.o
+ endif
+-endif
+ obj-$(CONFIG_TEGRA_PCI)                 += pcie.o
+ obj-$(CONFIG_USB_SUPPORT)               += usb_phy.o
+ ifeq ($(CONFIG_CPU_IDLE),y)
+@@ -206,7 +202,6 @@ obj-${CONFIG_MACH_GROUPER}              += board-grouper-power.o
+ obj-${CONFIG_MACH_GROUPER}              += board-grouper-power-ti.o
+ obj-${CONFIG_MACH_GROUPER}              += board-grouper-sdhci.o
+ obj-${CONFIG_MACH_GROUPER}              += board-grouper-sensors.o
+-obj-y                                   += eeprom-wifi-mac.o
+ 
+ obj-${CONFIG_TEGRA_BB_XMM_POWER}        += baseband-xmm-power.o
+ obj-${CONFIG_TEGRA_BB_XMM_POWER2}       += baseband-xmm-power2.o
+diff --git a/arch/arm/mach-tegra/board-grouper.c b/arch/arm/mach-tegra/board-grouper.c
+index 9fe0ebb..ea15f20 100755
+--- a/arch/arm/mach-tegra/board-grouper.c
++++ b/arch/arm/mach-tegra/board-grouper.c
+@@ -283,6 +283,8 @@ static struct at24_platform_data eeprom_info = {
+ 	.setup		= get_mac_addr,
+ };
+ 
++#include "eeprom-wifi-mac.c"
++
+ static struct i2c_board_info grouper_i2c4_max17048_board_info[] = {
+ 	{
+ 		I2C_BOARD_INFO("max17048", 0x36),
+diff --git a/arch/arm/vfp/Makefile b/arch/arm/vfp/Makefile
+index ec624f0..6de73aa 100644
+--- a/arch/arm/vfp/Makefile
++++ b/arch/arm/vfp/Makefile
+@@ -7,7 +7,7 @@
+ # ccflags-y := -DDEBUG
+ # asflags-y := -DDEBUG
+ 
+-KBUILD_AFLAGS	:=$(KBUILD_AFLAGS:-msoft-float=-Wa,-mfpu=neon)
++KBUILD_AFLAGS	:=$(KBUILD_AFLAGS:-msoft-float=-Wa,-mfpu=softvfp+vfp)
+ LDFLAGS		+=--no-warn-mismatch
+ 
+ obj-y			+= vfp.o
+diff --git a/drivers/power/Makefile b/drivers/power/Makefile
+index 2dec488..c44d072 100644
+--- a/drivers/power/Makefile
++++ b/drivers/power/Makefile
+@@ -1,5 +1,7 @@
+ ccflags-$(CONFIG_POWER_SUPPLY_DEBUG) := -DDEBUG
+ 
++EXTRA_CFLAGS           = -Iarch/arm/mach-tegra/
++
+ power_supply-y				:= power_supply_core.o
+ power_supply-$(CONFIG_SYSFS)		+= power_supply_sysfs.o
+ power_supply-$(CONFIG_LEDS_TRIGGERS)	+= power_supply_leds.o
+diff --git a/kernel/module.c b/kernel/module.c
+index e0ddcec..8c728d8 100644
+--- a/kernel/module.c
++++ b/kernel/module.c
+@@ -2484,7 +2484,7 @@ static int check_modinfo(struct module *mod, struct load_info *info)
+ 	} else if (!same_magic(modmagic, vermagic, info->index.vers)) {
+ 		printk(KERN_ERR "%s: version magic '%s' should be '%s'\n",
+ 		       mod->name, modmagic, vermagic);
+-		return -ENOEXEC;
++	//	return -ENOEXEC;
+ 	}
+ 
+ 	if (get_modinfo(info, "staging")) {
+-- 
+1.7.9.5
+
